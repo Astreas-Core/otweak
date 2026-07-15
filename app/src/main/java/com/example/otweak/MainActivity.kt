@@ -42,6 +42,18 @@ import kotlin.math.sin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.compose.ui.zIndex
+import androidx.compose.animation.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Monitor
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.otweak.theme.OTweakTheme
 
 class MainActivity : ComponentActivity() {
@@ -82,6 +94,8 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
     val clockAlpha by viewModel.clockAlpha.collectAsState()
     val isTermsAccepted by viewModel.isTermsAccepted.collectAsState()
     val isTelegramJoined by viewModel.isTelegramJoined.collectAsState()
+    val updateAvailable by viewModel.updateAvailable.collectAsState()
+    val updateUrl by viewModel.updateUrl.collectAsState()
     
     var showAboutDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -165,21 +179,33 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { Text("OTweak", fontWeight = FontWeight.Bold) },
                 actions = {
+                    if (updateAvailable && updateUrl != null) {
+                        Badge(containerColor = MaterialTheme.colorScheme.error) {
+                            Text("UPDATE", color = MaterialTheme.colorScheme.onError, modifier = Modifier.padding(horizontal = 4.dp).clickable {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl)))
+                            })
+                        }
+                    }
                     if (isTelegramJoined && hasPermission) {
                         IconButton(onClick = { showAboutDialog = true }) {
                             Text("☰", style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.largeTopAppBarColors(
                     containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -189,58 +215,66 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            if (!isTelegramJoined) {
-                TelegramOnboardingScreen(viewModel)
-            } else if (!isShizukuAvailable || !hasPermission) {
-                ShizukuOnboardingScreen(
-                    isShizukuAvailable = isShizukuAvailable,
-                    hasPermission = hasPermission,
-                    onRequestPermission = { viewModel.requestShizukuPermission() }
-                )
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    TweakSection("Display Tweaks") {
-                        TweakSwitchCard(
-                            title = "Realtime Blur (Glow Effect)",
-                            description = "Enable the blur/glow effect on supported budget OriginOS devices.",
-                            checked = isGlowEffectEnabled,
-                            onCheckedChange = { viewModel.setGlowEffect(it) }
-                        )
-                        TweakSwitchCard(
-                            title = "Widget Transparency",
-                            description = "Enable transparency for supported widgets on the launcher.",
-                            checked = isWidgetTransparencyEnabled,
-                            onCheckedChange = { viewModel.setWidgetTransparency(it) }
-                        )
-                        TweakSwitchCard(
-                            title = "Disable Force Rotate Icon",
-                            description = "Turn off the small rotation suggestion icon that appears when you tilt your device.",
-                            checked = isForceRotateDisabled,
-                            onCheckedChange = { viewModel.setForceRotateDisabled(it) }
-                        )
-                    }
+            AnimatedContent(
+                targetState = Triple(isTelegramJoined, isShizukuAvailable, hasPermission),
+                transitionSpec = {
+                    slideInHorizontally { width -> width } + fadeIn() togetherWith slideOutHorizontally { width -> -width } + fadeOut()
+                },
+                label = "MainScreenTransition"
+            ) { (telegramJoined, shizukuAvail, permissionGranted) ->
+                if (!telegramJoined) {
+                    TelegramOnboardingScreen(viewModel)
+                } else if (!shizukuAvail || !permissionGranted) {
+                    ShizukuOnboardingScreen(
+                        isShizukuAvailable = shizukuAvail,
+                        hasPermission = permissionGranted,
+                        onRequestPermission = { viewModel.requestShizukuPermission() }
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        TweakSection("Display Tweaks", Icons.Default.Monitor) {
+                            TweakSwitchCard(
+                                title = "Glow Effect",
+                                description = "Enable the blur/glow effect on supported budget OriginOS devices.",
+                                checked = isGlowEffectEnabled,
+                                onCheckedChange = { viewModel.setGlowEffect(it) }
+                            )
+                            TweakSwitchCard(
+                                title = "Widget Transparency",
+                                description = "Enable transparency for supported widgets on the launcher.",
+                                checked = isWidgetTransparencyEnabled,
+                                onCheckedChange = { viewModel.setWidgetTransparency(it) }
+                            )
+                            TweakSwitchCard(
+                                title = "Disable Force Rotate Icon",
+                                description = "Turn off the small rotation suggestion icon that appears when you tilt your device.",
+                                checked = isForceRotateDisabled,
+                                onCheckedChange = { viewModel.setForceRotateDisabled(it) }
+                            )
+                        }
 
-                    TweakSection("Lock Screen Tweaks") {
-                        ClockCustomizationCard(
-                            currentStyleIndex = clockStyleIndex,
-                            currentColorHex = clockColorHex,
-                            currentSubColorHex = clockSubColorHex,
-                            currentAlpha = clockAlpha,
-                            onCustomizationChanged = { styleIndex, colorHex, subColorHex, alpha -> 
-                                viewModel.setClockCustomization(styleIndex, colorHex, subColorHex, alpha) { success ->
-                                    if (success) {
-                                        android.widget.Toast.makeText(context, "Applied! Please lock screen to view.", android.widget.Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        android.widget.Toast.makeText(context, "Failed to apply customization.", android.widget.Toast.LENGTH_LONG).show()
+                        TweakSection("Lock Screen Tweaks", Icons.Default.Lock) {
+                            ClockCustomizationCard(
+                                currentStyleIndex = clockStyleIndex,
+                                currentColorHex = clockColorHex,
+                                currentSubColorHex = clockSubColorHex,
+                                currentAlpha = clockAlpha,
+                                onCustomizationChanged = { styleIndex, colorHex, subColorHex, alpha -> 
+                                    viewModel.setClockCustomization(styleIndex, colorHex, subColorHex, alpha) { success ->
+                                        if (success) {
+                                            android.widget.Toast.makeText(context, "Applied! Please lock screen to view.", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Failed to apply customization.", android.widget.Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -252,15 +286,13 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
 fun TelegramOnboardingScreen(viewModel: MainViewModel) {
     val clickedSupport by viewModel.clickedSupport.collectAsState()
     val clickedHub by viewModel.clickedHub.collectAsState()
-    val clickedWallpapers by viewModel.clickedWallpapers.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
     var loadingSupport by remember { mutableStateOf(false) }
     var loadingHub by remember { mutableStateOf(false) }
-    var loadingWallpapers by remember { mutableStateOf(false) }
 
-    val allClicked = clickedSupport && clickedHub && clickedWallpapers
+    val allClicked = clickedSupport && clickedHub
 
     Column(
         modifier = Modifier
@@ -281,16 +313,11 @@ fun TelegramOnboardingScreen(viewModel: MainViewModel) {
                 contentDescription = null,
                 modifier = Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).border(2.dp, MaterialTheme.colorScheme.background, androidx.compose.foundation.shape.CircleShape).zIndex(2f)
             )
-            Image(
-                painter = painterResource(id = R.drawable.g3),
-                contentDescription = null,
-                modifier = Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).border(2.dp, MaterialTheme.colorScheme.background, androidx.compose.foundation.shape.CircleShape).zIndex(3f)
-            )
         }
         Text("Welcome to OTweak", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "To proceed, please join our 3 Telegram communities for the latest updates and support.",
+            "To proceed, please join our 2 Telegram communities for the latest updates and support.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
@@ -343,32 +370,6 @@ fun TelegramOnboardingScreen(viewModel: MainViewModel) {
                 Text("Verifying...")
             } else {
                 Text(if (clickedHub) "Joined Hub Channel ✓" else "Join Hub Channel")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-                if (!clickedWallpapers && !loadingWallpapers) {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/vivoiqooupdate")))
-                    scope.launch {
-                        loadingWallpapers = true
-                        kotlinx.coroutines.delay(5000)
-                        viewModel.markWallpapersClicked()
-                        loadingWallpapers = false
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = if (clickedWallpapers || loadingWallpapers) Color.Gray else MaterialTheme.colorScheme.primary)
-        ) {
-            if (loadingWallpapers) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Verifying...")
-            } else {
-                Text(if (clickedWallpapers) "Joined Wallpapers Channel ✓" else "Join Wallpapers Channel")
             }
         }
 
@@ -551,21 +552,25 @@ fun ShizukuWarningCard(message: String, buttonText: String, onClick: () -> Unit)
 }
 
 @Composable
-fun TweakSection(title: String, content: @Composable () -> Unit) {
+fun TweakSection(title: String, icon: ImageVector, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+            Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
         content()
     }
 }
 
 @Composable
 fun TweakSwitchCard(title: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -584,7 +589,10 @@ fun TweakSwitchCard(title: String, description: String, checked: Boolean, onChec
             }
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange
+                onCheckedChange = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onCheckedChange(it)
+                }
             )
         }
     }
@@ -606,6 +614,7 @@ fun ClockCustomizationCard(
     var tempColorHex by remember(currentColorHex) { mutableStateOf(currentColorHex) }
     var tempSubColorHex by remember(currentSubColorHex) { mutableStateOf(currentSubColorHex) }
     var tempAlpha by remember(currentAlpha) { mutableFloatStateOf(currentAlpha) }
+    val haptic = LocalHapticFeedback.current
 
     if (showColorPicker) {
         val initialColorHex = if (editingMainColor || !(tempStyleIndex == 1 || tempStyleIndex == 2)) tempColorHex else tempSubColorHex
@@ -669,15 +678,23 @@ fun ClockCustomizationCard(
                     }
                     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
                     
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(targetValue = if (isPressed) 0.92f else 1f, label = "cardScale")
+                    
                     Image(
                         painter = painterResource(id = drawableRes),
                         contentDescription = "Style ${index + 1}",
                         modifier = Modifier
                             .height(180.dp)
                             .aspectRatio(0.45f)
+                            .scale(scale)
                             .clip(RoundedCornerShape(8.dp))
                             .border(3.dp, borderColor, RoundedCornerShape(8.dp))
-                            .clickable { tempStyleIndex = index }
+                            .clickable(interactionSource = interactionSource, indication = null) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                tempStyleIndex = index
+                            }
                     )
                 }
             }
@@ -731,13 +748,20 @@ fun ClockCustomizationCard(
             Text("3. Adjust Transparency: $transparencyPercent%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             Slider(
                 value = currentTransparency,
-                onValueChange = { tempAlpha = 1f - it },
-                valueRange = 0f..1f
+                onValueChange = { 
+                    tempAlpha = 1f - it 
+                    // To prevent spamming haptics, only vibrate on discrete steps or we can leave it off for slider value change to avoid lag, but let's add a light one.
+                },
+                valueRange = 0f..1f,
+                onValueChangeFinished = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
             )
 
             // 4. Apply Button
             Button(
-                onClick = { onCustomizationChanged(tempStyleIndex, tempColorHex, tempSubColorHex, tempAlpha) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onCustomizationChanged(tempStyleIndex, tempColorHex, tempSubColorHex, tempAlpha) 
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {

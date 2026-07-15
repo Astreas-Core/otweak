@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import org.json.JSONObject
 
 class MainViewModel : ViewModel() {
     val isShizukuAvailable = ShizukuManager.isShizukuAvailable
@@ -23,9 +25,6 @@ class MainViewModel : ViewModel() {
     private val _clickedHub = MutableStateFlow(false)
     val clickedHub: StateFlow<Boolean> = _clickedHub.asStateFlow()
 
-    private val _clickedWallpapers = MutableStateFlow(false)
-    val clickedWallpapers: StateFlow<Boolean> = _clickedWallpapers.asStateFlow()
-
     val isGlowEffectEnabled: StateFlow<Boolean> = TweakRepository.isGlowEffectEnabled
     val isWidgetTransparencyEnabled: StateFlow<Boolean> = TweakRepository.isWidgetTransparencyEnabled
     val isForceRotateDisabled: StateFlow<Boolean> = TweakRepository.isForceRotateDisabled
@@ -34,6 +33,43 @@ class MainViewModel : ViewModel() {
     val clockColorHex = TweakRepository.clockColorHex
     val clockSubColorHex = TweakRepository.clockSubColorHex
     val clockAlpha = TweakRepository.clockAlpha
+
+    private val _updateAvailable = MutableStateFlow(false)
+    val updateAvailable: StateFlow<Boolean> = _updateAvailable.asStateFlow()
+    
+    private val _updateUrl = MutableStateFlow<String?>(null)
+    val updateUrl: StateFlow<String?> = _updateUrl.asStateFlow()
+
+    init {
+        checkForUpdates()
+    }
+
+    private fun checkForUpdates() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val url = java.net.URL("https://api.github.com/repos/Astreas-Core/otweak/releases/latest")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
+                if (connection.responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val jsonObject = JSONObject(response)
+                    val tagName = jsonObject.getString("tag_name")
+                    val currentVersion = BuildConfig.VERSION_NAME
+                    
+                    val cleanTagName = tagName.removePrefix("v")
+                    val cleanCurrent = currentVersion.removePrefix("v")
+                    
+                    if (cleanTagName != cleanCurrent) {
+                        _updateAvailable.value = true
+                        _updateUrl.value = jsonObject.getString("html_url")
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     fun requestShizukuPermission() {
         ShizukuManager.requestPermission()
@@ -58,7 +94,6 @@ class MainViewModel : ViewModel() {
 
     fun markSupportClicked() { _clickedSupport.value = true }
     fun markHubClicked() { _clickedHub.value = true }
-    fun markWallpapersClicked() { _clickedWallpapers.value = true }
 
     fun completeTelegramOnboarding() {
         TweakRepository.setTelegramJoined(true)
