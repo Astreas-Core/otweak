@@ -46,6 +46,7 @@ import androidx.compose.animation.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Monitor
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -159,7 +160,11 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("Origin Tweaks", fontWeight = FontWeight.Bold) },
+                title = { 
+                    if (isTelegramJoined && hasPermission) {
+                        Text("Origin Tweaks", fontWeight = FontWeight.Bold) 
+                    }
+                },
                 actions = {
                     if (updateAvailable && updateUrl != null) {
                         Badge(containerColor = MaterialTheme.colorScheme.error) {
@@ -961,7 +966,7 @@ fun SettingsScreen(
                 headlineContent = { Text("Check for Updates") },
                 supportingContent = { Text("Version ${BuildConfig.VERSION_NAME}") },
                 leadingContent = {
-                    Icon(painter = painterResource(id = android.R.drawable.ic_popup_sync), contentDescription = null)
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
                 },
                 modifier = Modifier.clickable { viewModel.manualCheckForUpdates() }
             )
