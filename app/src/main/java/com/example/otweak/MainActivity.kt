@@ -62,12 +62,21 @@ class MainActivity : ComponentActivity() {
         TweakRepository.init(this)
         enableEdgeToEdge()
         setContent {
-            OTweakTheme {
+            val viewModel: MainViewModel = viewModel()
+            val themeMode by viewModel.themeMode.collectAsState()
+            val blackNightTheme by viewModel.blackNightTheme.collectAsState()
+            val useSystemThemeColor by viewModel.useSystemThemeColor.collectAsState()
+
+            OTweakTheme(
+                themeMode = themeMode,
+                blackNightTheme = blackNightTheme,
+                dynamicColor = useSystemThemeColor
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    OTweakApp()
+                    OTweakApp(viewModel = viewModel)
                 }
             }
         }
@@ -97,7 +106,7 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
     val updateAvailable by viewModel.updateAvailable.collectAsState()
     val updateUrl by viewModel.updateUrl.collectAsState()
     
-    var showAboutDialog by remember { mutableStateOf(false) }
+    var showSettingsScreen by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     LaunchedEffect(hasPermission) {
@@ -112,7 +121,7 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
             title = { Text("Terms & Conditions", fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "OTweak modifies deep system settings using Shizuku. " +
+                    "Origin Tweaks modifies deep system settings using Shizuku. " +
                     "Incorrect use may cause system instability or unexpected behavior. " +
                     "By proceeding, you agree that you use this application entirely at your own risk and the developer is not responsible for any damage to your device."
                 )
@@ -131,51 +140,16 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
         )
     }
 
-    if (showAboutDialog) {
-        AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text("About OTweak", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Image(
-                            painter = painterResource(id = R.drawable.mr_exquisite),
-                            contentDescription = "Mr. Exquisite Profile",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .border(2.dp, MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
-                        )
-                        Text("Made by Mr. Exquisite", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
-                    }
-                    
-                    Text("Join our community for OriginOS updates, support, tweaks, and discussions!", style = MaterialTheme.typography.bodyMedium)
-                    
-                    Button(
-                        onClick = { 
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/OOSHub")))
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("OriginOS 6 Hub (Channel)")
-                    }
-                    
-                    Button(
-                        onClick = { 
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/OOSSupport")))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
-                    ) {
-                        Text("OriginOS 6 Support (Group)")
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
-                    Text("Close")
-                }
-            }
+    AnimatedVisibility(
+        visible = showSettingsScreen,
+        enter = slideInHorizontally(initialOffsetX = { it }),
+        exit = slideOutHorizontally(targetOffsetX = { it }),
+        modifier = Modifier.zIndex(10f)
+    ) {
+        SettingsScreen(
+            viewModel = viewModel,
+            onBack = { showSettingsScreen = false },
+            onTelegramClick = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         )
     }
 
@@ -185,7 +159,7 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("OTweak", fontWeight = FontWeight.Bold) },
+                title = { Text("Origin Tweaks", fontWeight = FontWeight.Bold) },
                 actions = {
                     if (updateAvailable && updateUrl != null) {
                         Badge(containerColor = MaterialTheme.colorScheme.error) {
@@ -195,7 +169,7 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
                         }
                     }
                     if (isTelegramJoined && hasPermission) {
-                        IconButton(onClick = { showAboutDialog = true }) {
+                        IconButton(onClick = { showSettingsScreen = true }) {
                             Text("☰", style = MaterialTheme.typography.titleLarge)
                         }
                     }
@@ -314,7 +288,7 @@ fun TelegramOnboardingScreen(viewModel: MainViewModel) {
                 modifier = Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).border(2.dp, MaterialTheme.colorScheme.background, androidx.compose.foundation.shape.CircleShape).zIndex(2f)
             )
         }
-        Text("Welcome to OTweak", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Welcome to Origin Tweaks", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "To proceed, please join our 2 Telegram communities for the latest updates and support.",
@@ -402,7 +376,7 @@ fun ShizukuOnboardingScreen(isShizukuAvailable: Boolean, hasPermission: Boolean,
             Text("Shizuku Required", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "OTweak uses Shizuku to modify deep system settings without needing root. Have you installed Shizuku?",
+                "Origin Tweaks uses Shizuku to modify deep system settings without needing root. Have you installed Shizuku?",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
@@ -508,7 +482,7 @@ fun ShizukuOnboardingScreen(isShizukuAvailable: Boolean, hasPermission: Boolean,
                 }
             } else if (!hasPermission) {
                 Text(
-                    "Shizuku is running! Now grant permission to OTweak.",
+                    "Shizuku is running! Now grant permission to Origin Tweaks.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     color = MaterialTheme.colorScheme.primary
@@ -830,5 +804,182 @@ fun ColorPicker(modifier: Modifier = Modifier, onColorSelected: (String) -> Unit
         
         Text("Brightness: ${(value * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
         Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f, modifier = Modifier.height(24.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    viewModel: MainViewModel,
+    onBack: () -> Unit,
+    onTelegramClick: (String) -> Unit
+) {
+    val themeMode by viewModel.themeMode.collectAsState()
+    val blackNightTheme by viewModel.blackNightTheme.collectAsState()
+    val useSystemThemeColor by viewModel.useSystemThemeColor.collectAsState()
+
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Settings") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Text("←", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            )
+        },
+        modifier = Modifier.fillMaxSize()
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = "Appearance",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+            )
+
+            // Theme Setting
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showThemeDialog = true }
+                    .padding(16.dp)
+            ) {
+                Text("Theme", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = when (themeMode) {
+                        1 -> "Light"
+                        2 -> "Dark"
+                        else -> "Follow system"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Black night theme
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.setBlackNightTheme(!blackNightTheme) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Black night theme", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Use the pure black theme if night mode is enabled",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = blackNightTheme,
+                    onCheckedChange = { viewModel.setBlackNightTheme(it) }
+                )
+            }
+
+            // Use system theme color
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { viewModel.setUseSystemThemeColor(!useSystemThemeColor) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Use system theme color",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = useSystemThemeColor,
+                    onCheckedChange = { viewModel.setUseSystemThemeColor(it) }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = "Support",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+            )
+
+            ListItem(
+                headlineContent = { Text("OriginOS 6 Hub (Channel)") },
+                modifier = Modifier.clickable { onTelegramClick("https://t.me/OOSHub") }
+            )
+
+            ListItem(
+                headlineContent = { Text("OriginOS 6 Support (Group)") },
+                modifier = Modifier.clickable { onTelegramClick("https://t.me/OOSSupport") }
+            )
+
+            ListItem(
+                headlineContent = { Text("Made by Mr. Exquisite") },
+                supportingContent = { Text("Join our community for OriginOS updates and tweaks!") },
+                leadingContent = {
+                    Image(
+                        painter = painterResource(id = R.drawable.mr_exquisite),
+                        contentDescription = "Mr. Exquisite Profile",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
+                    )
+                }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        if (showThemeDialog) {
+            AlertDialog(
+                onDismissRequest = { showThemeDialog = false },
+                title = { Text("Theme") },
+                text = {
+                    Column {
+                        val options = listOf("Follow system" to 0, "Light" to 1, "Dark" to 2)
+                        options.forEach { (label, value) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setThemeMode(value)
+                                        showThemeDialog = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = themeMode == value,
+                                    onClick = {
+                                        viewModel.setThemeMode(value)
+                                        showThemeDialog = false
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(label)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showThemeDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 }

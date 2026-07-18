@@ -40,6 +40,10 @@ class MainViewModel : ViewModel() {
     private val _updateUrl = MutableStateFlow<String?>(null)
     val updateUrl: StateFlow<String?> = _updateUrl.asStateFlow()
 
+    val themeMode = TweakRepository.themeMode
+    val blackNightTheme = TweakRepository.blackNightTheme
+    val useSystemThemeColor = TweakRepository.useSystemThemeColor
+
     init {
         checkForUpdates()
     }
@@ -123,5 +127,17 @@ class MainViewModel : ViewModel() {
             val result = TweakRepository.setClockCustomization(styleIndex, colorHex, subColorHex, alpha)
             onResult(result.isSuccess)
         }
+    }
+
+    fun setThemeMode(mode: Int) {
+        TweakRepository.setThemeMode(mode)
+    }
+
+    fun setBlackNightTheme(enabled: Boolean) {
+        TweakRepository.setBlackNightTheme(enabled)
+    }
+
+    fun setUseSystemThemeColor(enabled: Boolean) {
+        TweakRepository.setUseSystemThemeColor(enabled)
     }
 }

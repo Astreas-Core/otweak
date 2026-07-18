@@ -16,6 +16,7 @@ object TweakRepository {
     fun init(context: Context) {
         appContext = context.applicationContext
         prefs = context.getSharedPreferences("otweak_prefs", Context.MODE_PRIVATE)
+        loadThemeSettings()
     }
 
     fun isTermsAccepted(): Boolean {
@@ -60,6 +61,15 @@ object TweakRepository {
         """{"info_widget":{"countdown":{"currentTime":0,"countdown_lunar_flag":false},"info_type":"com.vivo.systemuiplugin/none","slogan":""},"shortcut":{"left_tool":"phone","right_tool":"camera"},"style_id":22,"time_view":{"clock_font":{"font_id":"6","font_path":"/system/fonts/vivoSansClockHAVF.ttf","font_weight":600},"front_type":0,"glass":0,"location":{"align":0,"col_count":2,"row_count":5,"start_col":0,"start_row":0},"main_color":{"progress":0,"fixed_color":"#ffff0000","type_id":-4},"style_id":"s8-2x5","sub_color":{"progress":0,"fixed_color":"#ffffe600","type_id":-4},"unfold_location":{"align":0,"col_count":2,"row_count":5,"start_col":0,"start_row":0},"version":"3"},"version":3}""",
         """{"info_widget":{"countdown":{"currentTime":0,"countdown_lunar_flag":false},"info_type":"com.vivo.systemuiplugin/none","slogan":""},"shortcut":{"left_tool":"phone","right_tool":"camera"},"style_id":22,"time_view":{"clock_font":{"font_id":"6","font_path":"/system/fonts/vivoSansClockHAVF.ttf","font_weight":600},"front_type":0,"glass":0,"location":{"align":0,"col_count":2,"row_count":5,"start_col":0,"start_row":0},"main_color":{"progress":0,"fixed_color":"#fffff500","type_id":-4},"style_id":"s9-2x5","sub_color":{"progress":0,"fixed_color":"#ffff0000","type_id":-4},"unfold_location":{"align":0,"col_count":2,"row_count":5,"start_col":0,"start_row":0},"version":"3"},"version":3}"""
     )
+
+    private val _themeMode = MutableStateFlow(0) // 0: System, 1: Light, 2: Dark
+    val themeMode: StateFlow<Int> = _themeMode.asStateFlow()
+
+    private val _blackNightTheme = MutableStateFlow(false)
+    val blackNightTheme: StateFlow<Boolean> = _blackNightTheme.asStateFlow()
+
+    private val _useSystemThemeColor = MutableStateFlow(true)
+    val useSystemThemeColor: StateFlow<Boolean> = _useSystemThemeColor.asStateFlow()
 
     suspend fun applySavedSettings() {
         if (prefs.getBoolean("glow_effect", false)) {
@@ -255,5 +265,26 @@ object TweakRepository {
             Log.e("TweakRepository", "Failed to set clock customization", e)
             Result.failure(e)
         }
+    }
+
+    fun loadThemeSettings() {
+        _themeMode.value = prefs.getInt("theme_mode", 0)
+        _blackNightTheme.value = prefs.getBoolean("black_night_theme", false)
+        _useSystemThemeColor.value = prefs.getBoolean("use_system_theme_color", true)
+    }
+
+    fun setThemeMode(mode: Int) {
+        prefs.edit().putInt("theme_mode", mode).apply()
+        _themeMode.value = mode
+    }
+
+    fun setBlackNightTheme(enabled: Boolean) {
+        prefs.edit().putBoolean("black_night_theme", enabled).apply()
+        _blackNightTheme.value = enabled
+    }
+
+    fun setUseSystemThemeColor(enabled: Boolean) {
+        prefs.edit().putBoolean("use_system_theme_color", enabled).apply()
+        _useSystemThemeColor.value = enabled
     }
 }

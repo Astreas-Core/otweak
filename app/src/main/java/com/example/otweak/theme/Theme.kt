@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(primary = Purple80, secondary = PurpleGrey80, tertiary = Pink80)
 
@@ -31,20 +32,34 @@ private val LightColorScheme =
 
 @Composable
 fun OTweakTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
+  themeMode: Int = 0, // 0 = System, 1 = Light, 2 = Dark
+  blackNightTheme: Boolean = false,
   // Dynamic color is available on Android 12+
   dynamicColor: Boolean = true,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme =
+  val isDarkTheme = when (themeMode) {
+      1 -> false
+      2 -> true
+      else -> isSystemInDarkTheme()
+  }
+
+  var colorScheme =
     when {
       dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
       }
-      darkTheme -> DarkColorScheme
+      isDarkTheme -> DarkColorScheme
       else -> LightColorScheme
     }
+
+  if (isDarkTheme && blackNightTheme) {
+      colorScheme = colorScheme.copy(
+          background = Color.Black,
+          surface = Color.Black
+      )
+  }
 
   MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }
