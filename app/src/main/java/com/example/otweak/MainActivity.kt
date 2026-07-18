@@ -288,7 +288,13 @@ fun TelegramOnboardingScreen(viewModel: MainViewModel) {
                 modifier = Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).border(2.dp, MaterialTheme.colorScheme.background, androidx.compose.foundation.shape.CircleShape).zIndex(2f)
             )
         }
-        Text("Welcome to Origin Tweaks", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "Welcome to Origin Tweaks",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             "To proceed, please join our 2 Telegram communities for the latest updates and support.",
@@ -941,6 +947,35 @@ fun SettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = "About",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+            )
+
+            ListItem(
+                headlineContent = { Text("Check for Updates") },
+                supportingContent = { Text("Version ${BuildConfig.VERSION_NAME}") },
+                leadingContent = {
+                    Icon(painter = painterResource(id = android.R.drawable.ic_popup_sync), contentDescription = null)
+                },
+                modifier = Modifier.clickable { viewModel.manualCheckForUpdates() }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        val updateMessage by viewModel.updateCheckMessage.collectAsState()
+        val context = LocalContext.current
+        LaunchedEffect(updateMessage) {
+            updateMessage?.let {
+                android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+                viewModel.clearUpdateMessage()
+            }
         }
 
         if (showThemeDialog) {

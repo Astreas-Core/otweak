@@ -40,6 +40,9 @@ class MainViewModel : ViewModel() {
     private val _updateUrl = MutableStateFlow<String?>(null)
     val updateUrl: StateFlow<String?> = _updateUrl.asStateFlow()
 
+    private val _updateCheckMessage = MutableStateFlow<String?>(null)
+    val updateCheckMessage: StateFlow<String?> = _updateCheckMessage.asStateFlow()
+
     val themeMode = TweakRepository.themeMode
     val blackNightTheme = TweakRepository.blackNightTheme
     val useSystemThemeColor = TweakRepository.useSystemThemeColor
@@ -48,7 +51,8 @@ class MainViewModel : ViewModel() {
         checkForUpdates()
     }
 
-    private fun checkForUpdates() {
+    private fun checkForUpdates(manual: Boolean = false) {
+        if (manual) _updateCheckMessage.value = "Checking for updates..."
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val url = java.net.URL("https://api.github.com/repos/Astreas-Core/otweak/releases/latest")
@@ -67,12 +71,26 @@ class MainViewModel : ViewModel() {
                     if (cleanTagName != cleanCurrent) {
                         _updateAvailable.value = true
                         _updateUrl.value = jsonObject.getString("html_url")
+                        if (manual) _updateCheckMessage.value = "Update available! v$cleanTagName"
+                    } else {
+                        if (manual) _updateCheckMessage.value = "You are on the latest version."
                     }
+                } else {
+                    if (manual) _updateCheckMessage.value = "Failed to check for updates."
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                if (manual) _updateCheckMessage.value = "Error checking for updates."
             }
         }
+    }
+
+    fun manualCheckForUpdates() {
+        checkForUpdates(true)
+    }
+
+    fun clearUpdateMessage() {
+        _updateCheckMessage.value = null
     }
 
     fun requestShizukuPermission() {
