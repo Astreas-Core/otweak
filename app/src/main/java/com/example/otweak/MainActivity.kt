@@ -3,6 +3,7 @@ package com.example.otweak
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -109,6 +110,10 @@ fun OTweakApp(viewModel: MainViewModel = viewModel()) {
     
     var showSettingsScreen by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    BackHandler(enabled = showSettingsScreen) {
+        showSettingsScreen = false
+    }
 
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
